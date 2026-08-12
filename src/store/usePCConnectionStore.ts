@@ -19,7 +19,7 @@ interface PCConnectionState {
   setConnectionPreference: (pref: 'USB First' | 'Wi-Fi First') => void;
 }
 
-export const usePCConnectionStore = create<PCConnectionState & {
+interface ExtendedPCConnectionState extends PCConnectionState {
   apps: any[];
   windows: any[];
   clipboardText: string | null;
@@ -30,7 +30,9 @@ export const usePCConnectionStore = create<PCConnectionState & {
   selectedDevice: any | null;
   systemStats: any | null;
   fetchDevices: (userId: string) => Promise<void>;
-}>((set, get) => ({
+}
+
+export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get) => ({
   isConnected: false,
   isConnecting: false,
   connectionError: null,
