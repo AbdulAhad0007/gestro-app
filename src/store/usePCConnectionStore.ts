@@ -81,7 +81,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
       const channel = supabase.channel('user_devices_changes')
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'user_devices', filter: \user_id=eq.\\ },
+          { event: '*', schema: 'public', table: 'user_devices', filter: `user_id=eq.${userId}` },
           async () => {
             const { data: newData } = await supabase
               .from('user_devices')
@@ -227,8 +227,8 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
 
       if (targetDevice.local_ip) {
         try {
-          console.log(\Trying LAN connection to \...\);
-          const lanWs = await tryConnect(\ws://\:8765\, 1500);
+          console.log(`Trying LAN connection to ${targetDevice.local_ip}...`);
+          const lanWs = await tryConnect(`ws://${targetDevice.local_ip}:8765`, 1500);
           console.log('LAN connected!');
           setupWsHandlers(lanWs, 'LAN');
           return;
@@ -255,7 +255,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
       if (!token) throw new Error("Not authenticated");
 
       const RELAY_URL = "ws://10.0.2.2:8080"; 
-      const relayWsUrl = \\/?role=client&token=\&device_id=\\;
+      const relayWsUrl = `${RELAY_URL}/?role=client&token=${token}&device_id=${targetDevice.id}`;
       
       console.log("Connecting via Relay...");
       const relayWs = await tryConnect(relayWsUrl, 5000);
