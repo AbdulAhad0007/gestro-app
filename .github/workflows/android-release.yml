@@ -1,0 +1,58 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on tags like v1.0.0
+
+jobs:
+  build:
+    name: Build and Release APK
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Inject .env.local
+        run: |
+          echo "${{ secrets.ENV_LOCAL_CONTENT }}" > .env.local
+
+      - name: Expo Prebuild
+        run: npx expo prebuild --platform android
+
+      - name: Build APK
+        working-directory: ./android
+        run: ./gradlew assembleRelease
+
+      - name: Sign APK (Optional if keys are provided)
+        # If no keystore is provided, it builds an unsigned APK or debug-signed APK.
+        # For a true production build, we would sign it here using apksigner.
+        run: echo "APK built successfully"
+
+      - name: Rename APK
+        run: mv android/app/build/outputs/apk/release/app-release.apk gestro-android-${{ github.ref_name }}.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: gestro-android-${{ github.ref_name }}.apk
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
