@@ -49,20 +49,20 @@ serve(async (req) => {
         role: 'authenticated',
         email: matchingUser.email,
         app_metadata: { provider: 'email', providers: ['email'] },
-        user_metadata: { full_name: matchingUser.profile_name, face_token: matchingUser.face_id },
+        user_metadata: { full_name: matchingUser.name, face_token: matchingUser.face_id },
         session_id: crypto.randomUUID()
     })
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setIssuedAt()
-    .setSubject(matchingUser.user_id)
+    .setSubject(matchingUser.id)
     .setExpirationTime('7d')
     .sign(secret);
 
     const userPayload = {
-      id: matchingUser.user_id,
+      id: matchingUser.id,
       email: matchingUser.email,
       user_metadata: {
-        full_name: matchingUser.profile_name,
+        full_name: matchingUser.name,
         face_token: matchingUser.face_id
       },
       created_at: matchingUser.created_at

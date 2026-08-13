@@ -112,15 +112,15 @@ export function CreateProfileScreen({ navigation }: any) {
         const { error: profileError } = await supabase
           .from('user_profiles')
           .upsert({
-            user_id: data.user.id,
+            id: data.user.id,
             username: username,
             email: email,
-            profile_name: name,
+            name: name,
             face_id: faceToken,
             profile_mode: 'persistent',
             is_active: true,
             platform_created_from: 'android'
-          }, { onConflict: 'user_id' });
+          }, { onConflict: 'id' });
           
         if (profileError) {
           console.error('Error saving to user_profiles table:', profileError);
@@ -194,7 +194,7 @@ export function CreateProfileScreen({ navigation }: any) {
               icon={<User color={isDark ? '#A0A0A0' : '#666666'} size={20} />}
               value={name}
               onChangeText={setName}
-              className="mb-4"
+              containerClassName="mb-4"
             />
             <GestroInput 
               label=""
@@ -204,7 +204,7 @@ export function CreateProfileScreen({ navigation }: any) {
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
-              className="mb-4"
+              containerClassName="mb-4"
             />
             <GestroInput 
               label=""
@@ -213,7 +213,7 @@ export function CreateProfileScreen({ navigation }: any) {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
-              className="mb-4"
+              containerClassName="mb-4"
             />
             <GestroInput 
               label=""
@@ -222,7 +222,7 @@ export function CreateProfileScreen({ navigation }: any) {
               secureTextEntry
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              className="mb-6"
+              containerClassName="mb-6"
             />
             
             <View className="mb-6">

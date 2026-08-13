@@ -67,6 +67,7 @@ export function FaceLoginScreen({ navigation }: any) {
       const results = response.data?.results;
       if (results && results.length > 0 && results[0].confidence > 80) {
         const faceToken = results[0].face_token;
+        console.log("Matched faceToken from Face++:", faceToken);
         
         // Lookup user in Supabase by face_token using our new edge function
         const userLookupResponse = await supabase.functions.invoke('get-user-by-face', {
@@ -74,7 +75,8 @@ export function FaceLoginScreen({ navigation }: any) {
         });
 
         if (userLookupResponse.error || userLookupResponse.data?.error) {
-          throw new Error('Face verified, but user profile could not be found.');
+          console.error("get-user-by-face failed:", userLookupResponse);
+          throw new Error(`Edge Function Error: ${userLookupResponse.data?.error || userLookupResponse.error?.message || 'Face verified, but user profile could not be found.'}`);
         }
 
         const realUser = userLookupResponse.data.user;
@@ -131,7 +133,14 @@ export function FaceLoginScreen({ navigation }: any) {
           label={isVerifying ? "Verifying..." : "Scan Face"} 
           onPress={handleFaceScan} 
           isLoading={isVerifying}
-          className="w-full shadow-lg"
+          className="w-full shadow-lg mb-4"
+        />
+        
+        <GestroButton
+          label="Use password instead"
+          variant="secondary"
+          onPress={() => navigation.navigate('PasswordLogin')}
+          className="w-full shadow-lg opacity-90"
         />
       </View>
     </View>

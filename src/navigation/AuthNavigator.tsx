@@ -4,6 +4,7 @@ import { SplashScreen } from '../screens/SplashScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { FaceLoginScreen } from '../screens/FaceLoginScreen';
 import { CreateProfileScreen } from '../screens/CreateProfileScreen';
+import { PasswordLoginScreen } from '../screens/PasswordLoginScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -14,6 +15,7 @@ export function AuthNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="FaceLogin" component={FaceLoginScreen} />
       <Stack.Screen name="CreateProfile" component={CreateProfileScreen} />
+      <Stack.Screen name="PasswordLogin" component={PasswordLoginScreen} />
     </Stack.Navigator>
   );
 }
