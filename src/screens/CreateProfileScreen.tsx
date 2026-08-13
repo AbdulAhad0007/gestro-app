@@ -112,15 +112,15 @@ export function CreateProfileScreen({ navigation }: any) {
         const { error: profileError } = await supabase
           .from('user_profiles')
           .upsert({
-            id: data.user.id,
+            user_id: data.user.id,
             username: username,
             email: email,
-            name: name,
+            profile_name: name,
             face_id: faceToken,
             profile_mode: 'persistent',
             is_active: true,
             platform_created_from: 'android'
-          }, { onConflict: 'id' });
+          }, { onConflict: 'user_id' });
           
         if (profileError) {
           console.error('Error saving to user_profiles table:', profileError);
