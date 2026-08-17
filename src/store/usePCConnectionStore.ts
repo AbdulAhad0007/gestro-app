@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../services/supabase';
 import * as Device from 'expo-device';
+import { useFileTransferStore } from './useFileTransferStore';
 
 export type TransportType = 'USB' | 'LAN' | 'RELAY' | null;
 
@@ -25,11 +26,14 @@ interface ExtendedPCConnectionState extends PCConnectionState {
   clipboardText: string | null;
   brightness: number | null;
   screenshotData: string | null;
+  systemStats: any | null;
+  fileSystemItems: any[];
+  searchResults: any[];
+  isSearchingApps: boolean;
   
   availableDevices: any[];
   selectedDevice: any | null;
-  systemStats: any | null;
-  fetchDevices: (userId: string) => Promise<void>;
+  fetchDevices: (userId: string, skipSubscription?: boolean) => Promise<void>;
 }
 
 export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get) => ({
@@ -47,10 +51,13 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
   clipboardText: null,
   brightness: null,
   screenshotData: null,
+  systemStats: null,
+  fileSystemItems: [],
+  searchResults: [],
+  isSearchingApps: false,
 
   availableDevices: [],
   selectedDevice: null,
-  systemStats: null,
 
   _devicesSubscription: null as any,
   _pingInterval: null as any,
@@ -59,26 +66,50 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
     set({ connectionPreference: pref } as any);
   },
   
-  fetchDevices: async (userId: string) => {
-    if (!userId) return;
+  fetchDevices: async (userId: string, skipSubscription = false) => {
+    if (!userId) {
+      console.log('[fetchDevices] No userId provided, skipping.');
+      return;
+    }
     try {
+      // Refresh session if expired
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        console.error('[fetchDevices] Session error or missing session:', sessionError);
+        return;
+      }
+
+      if (!skipSubscription) {
+        console.log(`[fetchDevices] Querying user_devices for userId: ${userId}`);
+      }
+      
       const { data, error } = await supabase
         .from('user_devices')
         .select('*')
         .eq('user_id', userId)
         .eq('platform', 'windows')
         .order('last_seen', { ascending: false });
+      
+      if (error) {
+        console.error('[fetchDevices] Supabase error:', JSON.stringify(error));
+      }
+        
+      if (!skipSubscription) {
+        console.log(`[fetchDevices] Result: ${data?.length ?? 0} devices found`, JSON.stringify(data));
+      }
         
       if (!error && data) {
         set({ availableDevices: data } as any);
       }
 
+      if (skipSubscription) return;
+
       const { _devicesSubscription } = get() as any;
       if (_devicesSubscription) {
-        _devicesSubscription.unsubscribe();
+        supabase.removeChannel(_devicesSubscription);
       }
 
-      const channel = supabase.channel('user_devices_changes')
+      const channel = supabase.channel('user_devices_changes_' + Math.random().toString(36).substring(7))
         .on(
           'postgres_changes',
           { event: '*', schema: 'public', table: 'user_devices', filter: `user_id=eq.${userId}` },
@@ -96,7 +127,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
         
       set({ _devicesSubscription: channel } as any);
     } catch (e) {
-      console.error('Failed to fetch devices', e);
+      console.error('[fetchDevices] Exception:', e);
     }
   },
 
@@ -154,19 +185,23 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
             set({ _pingInterval: pingInterval } as any);
 
           } else if (data.status === 'denied') {
-            set({ isConnecting: false, connectionError: 'Connection denied by PC.', ws: null } as any);
+            set({ isConnecting: false, connectionError: 'Connection denied by PC.', ws: null, selectedDevice: null } as any);
             ws.close();
           } else if (data.status === 'error') {
             set({ isConnecting: false, connectionError: data.message || 'Connection error.', ws: null } as any);
             ws.close();
+          } else if (data.action && data.action.startsWith('TRANSFER_')) {
+            useFileTransferStore.getState().handleIncomingMessage(data.action, data.payload);
           } else if (data.type) {
             if (data.type === 'PONG') {
               set({ latency: Date.now() - lastPingTime } as any);
             } else if (data.type === 'GET_APPS_RESPONSE' && data.success) set({ apps: data.data } as any);
             else if (data.type === 'GET_WINDOWS_RESPONSE' && data.success) set({ windows: data.data } as any);
+            else if (data.type === 'SEARCH_APPS_RESPONSE' && data.success) set({ searchResults: data.data, isSearchingApps: false } as any);
             else if (data.type === 'GET_CLIPBOARD_RESPONSE' && data.success) set({ clipboardText: data.data } as any);
             else if (data.type === 'TAKE_SCREENSHOT_RESPONSE' && data.success) set({ screenshotData: data.data } as any);
             else if (data.type === 'GET_SYSTEM_STATS_RESPONSE' && data.success) set({ systemStats: data.data } as any);
+            else if (data.type === 'LIST_DIRECTORY_RESPONSE' && data.success) set({ fileSystemItems: data.data } as any);
           }
         } catch (e) {
           console.error("Failed to parse WS message", e);
@@ -178,6 +213,9 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
         set({ isConnected: false, isConnecting: false, ws: null, transportType: null, latency: null } as any);
         const { _pingInterval } = get() as any;
         if (_pingInterval) clearInterval(_pingInterval);
+        
+        // Notify file transfer store to pause active transfers
+        useFileTransferStore.getState().handleDisconnect();
         
         // Auto-reconnect fallback
         setTimeout(() => {
@@ -221,7 +259,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
           setupWsHandlers(usbWs, 'USB');
           return;
         } catch (e) {
-          console.log('USB connection failed, falling back to LAN...');
+          console.log('USB connection failed...');
         }
       }
 
@@ -233,7 +271,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
           setupWsHandlers(lanWs, 'LAN');
           return;
         } catch (e) {
-          console.log('LAN connection failed, falling back to relay...');
+          console.log('LAN connection failed...');
         }
       }
 
@@ -246,24 +284,16 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
           setupWsHandlers(usbWs, 'USB');
           return;
         } catch (e) {
-          console.log('USB connection failed, falling back to relay...');
+          console.log('USB connection failed...');
         }
       }
 
-      const { useAuthStore } = await import('./useAuthStore');
-      const token = useAuthStore.getState().session?.access_token;
-      if (!token) throw new Error("Not authenticated");
-
-      const RELAY_URL = "ws://10.0.2.2:8080"; 
-      const relayWsUrl = `${RELAY_URL}/?role=client&token=${token}&device_id=${targetDevice.id}`;
-      
-      console.log("Connecting via Relay...");
-      const relayWs = await tryConnect(relayWsUrl, 5000);
-      setupWsHandlers(relayWs, 'RELAY');
+      // Throw error if local connection methods fail
+      throw new Error("Unable to connect to PC locally via USB or LAN.");
 
     } catch (err: any) {
       if ((get() as any)._connectionAttempt === currentAttempt) {
-        set({ isConnecting: false, connectionError: 'Failed to connect to PC locally and via relay.' } as any);
+        set({ isConnecting: false, connectionError: 'Failed to connect to PC via LAN or USB.' } as any);
         
         // Auto-reconnect fallback on total failure
         setTimeout(() => {
@@ -279,14 +309,27 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
     const { ws, _pingInterval } = get() as any;
     if (ws) ws.close();
     if (_pingInterval) clearInterval(_pingInterval);
-    set({ isConnected: false, isConnecting: false, ws: null, connectionError: null, transportType: null, latency: null, apps: [], windows: [], clipboardText: null, screenshotData: null, selectedDevice: null } as any);
+    set({ isConnected: false, isConnecting: false, ws: null, connectionError: null, transportType: null, latency: null,
+      apps: [],
+      windows: [],
+      clipboardText: null,
+      screenshotData: null,
+      systemStats: null,
+      fileSystemItems: [],
+      searchResults: [],
+      isSearchingApps: false,
+      selectedDevice: null
+    } as any);
   },
 
   sendAction: (action, payload = {}) => {
     const { ws, isConnected } = get();
     if (ws && isConnected) {
+      if (action === 'SEARCH_APPS') {
+        set({ isSearchingApps: true } as any);
+      }
       ws.send(JSON.stringify({ action, payload }));
-      if (!['MOUSE_MOVE', 'GET_SYSTEM_STATS', 'GET_WINDOWS', 'GET_APPS', 'PING'].includes(action)) {
+      if (!['MOUSE_MOVE', 'SCROLL_UP', 'SCROLL_DOWN', 'GET_SYSTEM_STATS', 'GET_WINDOWS', 'GET_APPS', 'PING'].includes(action)) {
         import('./useCommandHistoryStore').then(({ useCommandHistoryStore }) => {
           useCommandHistoryStore.getState().addCommand(action);
         }).catch(err => console.error(err));

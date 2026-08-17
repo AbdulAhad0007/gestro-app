@@ -3,7 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, Image, Alert } fro
 import { useThemeStore } from '../store/useThemeStore';
 import { usePCConnectionStore } from '../store/usePCConnectionStore';
 import { GestroButton } from '../components/GestroButton';
-import { ChevronLeft, ClipboardPaste, Camera, Download, Share2, Trash2, RefreshCw } from 'lucide-react-native';
+import { ChevronLeft, ClipboardPaste, Camera, Download, Share2, Trash2, RefreshCw, Monitor } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -120,7 +121,7 @@ export function ClipboardScreen() {
         <Text className={`text-2xl font-bold ${textColor}`}>Clipboard & Screenshot</Text>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 + (useSafeAreaInsets().bottom || 0) }}>
         {/* CLIPBOARD SECTION */}
         <View className="flex-row justify-between items-center mb-4">
           <Text className={`text-xl font-bold ${textColor}`}>PC Clipboard</Text>

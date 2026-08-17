@@ -5,6 +5,8 @@ import { WindowsListScreen } from '../screens/WindowsListScreen';
 import { ClipboardScreen } from '../screens/ClipboardScreen';
 import { MicScreen } from '../screens/MicScreen';
 import { CameraScreen } from '../screens/CameraScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,6 +18,8 @@ export function MoreStackNavigator() {
       <Stack.Screen name="ClipboardSync" component={ClipboardScreen} />
       <Stack.Screen name="Microphone" component={MicScreen} />
       <Stack.Screen name="Camera" component={CameraScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 }

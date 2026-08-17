@@ -4,6 +4,7 @@ import { useThemeStore } from '../store/useThemeStore';
 import { usePCConnectionStore } from '../store/usePCConnectionStore';
 import { GestroButton } from '../components/GestroButton';
 import { ChevronLeft, AppWindow, Search, Minimize2, Maximize2, XSquare, Focus } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 
@@ -71,7 +72,7 @@ export function WindowsListScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 + (useSafeAreaInsets().bottom || 0) }}>
         <View className="flex-row justify-between items-center mb-6">
           <Text className={`text-lg font-bold ${textColor}`}>Open Windows ({filteredWindows.length})</Text>
           <GestroButton label="Refresh" onPress={() => sendAction('GET_WINDOWS')} variant="outline" />

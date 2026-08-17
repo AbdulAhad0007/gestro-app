@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import './global.css';
 
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { BottomTabNavigator } from './src/navigation/BottomTabNavigator';
 import { AuthNavigator } from './src/navigation/AuthNavigator';
@@ -23,15 +24,17 @@ export default function App() {
   const isAuthenticated = session !== null || isTemporarySession;
 
   return (
-    <NavigationContainer>
-      {(!isInitialized || !isAuthenticated) ? (
-        <AuthNavigator />
-      ) : (
-        <ErrorBoundary>
-          <BottomTabNavigator />
-        </ErrorBoundary>
-      )}
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-    </NavigationContainer>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        {(!isInitialized || !isAuthenticated) ? (
+          <AuthNavigator />
+        ) : (
+          <ErrorBoundary>
+            <BottomTabNavigator />
+          </ErrorBoundary>
+        )}
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
 }

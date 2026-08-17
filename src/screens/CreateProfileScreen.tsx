@@ -1,15 +1,17 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useThemeStore } from '../store/useThemeStore';
 import { GestroButton } from '../components/GestroButton';
 import { GradientButton } from '../components/GradientButton';
 import { GestroInput } from '../components/GestroInput';
 import { supabase } from '../services/supabase';
-import { ArrowLeft, User, Mail, Lock, Check } from 'lucide-react-native';
+import { ArrowLeft, User, Mail, Lock, Check, Flashlight, FlashlightOff } from 'lucide-react-native';
 import { GestroIconButton } from '../components/GestroIconButton';
 import * as Device from 'expo-device';
 import { useAuthStore } from '../store/useAuthStore';
+
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export function CreateProfileScreen({ navigation }: any) {
   const isDark = useThemeStore((state) => state.isDarkMode());
@@ -26,8 +28,30 @@ export function CreateProfileScreen({ navigation }: any) {
   
   const [isCapturing, setIsCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   
   const cameraRef = useRef<any>(null);
+
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (step === 2 && permission?.granted) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanAnim, {
+            toValue: 1,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanAnim, {
+            toValue: 0,
+            duration: 2500,
+            useNativeDriver: true,
+          })
+        ])
+      ).start();
+    }
+  }, [step, permission, scanAnim]);
 
   const handleNext = () => {
     if (step === 1 && name && email && password && confirmPassword) {
@@ -50,7 +74,6 @@ export function CreateProfileScreen({ navigation }: any) {
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.5 });
       
-      // Step 1: Detect face in image
       const detectResponse = await supabase.functions.invoke('face-proxy', {
         body: {
           endpoint: 'detect',
@@ -70,7 +93,6 @@ export function CreateProfileScreen({ navigation }: any) {
       
       const faceToken = faces[0].face_token;
       
-      // Add face to FaceSet gestro_users
       const faceSetResponse = await supabase.functions.invoke('face-proxy', {
         body: {
           endpoint: 'faceset/addface',
@@ -92,7 +114,6 @@ export function CreateProfileScreen({ navigation }: any) {
       console.log('Successfully added to FaceSet:', faceSetResponse.data);
 
       
-      // Step 2: Create Supabase User
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -106,7 +127,6 @@ export function CreateProfileScreen({ navigation }: any) {
       
       if (signUpError) throw signUpError;
 
-      // Step 3: Save to user_profiles table (Single Source of Truth)
       if (data.user) {
         const username = email.split('@')[0];
         const { error: profileError } = await supabase
@@ -127,7 +147,6 @@ export function CreateProfileScreen({ navigation }: any) {
           throw new Error('Could not create complete profile. Please try again.');
         }
 
-        // Register the device
         await supabase.from('user_devices').insert({
             user_id: data.user.id,
             platform: 'android',
@@ -139,7 +158,6 @@ export function CreateProfileScreen({ navigation }: any) {
       
       alert('Profile created successfully! You can now log in.');
       
-      // If email confirmations are disabled, signUp returns a session immediately
       if (data.session) {
         useAuthStore.getState().setSession(data.session);
       } else {
@@ -153,16 +171,13 @@ export function CreateProfileScreen({ navigation }: any) {
     }
   };
 
+  const translateY = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [100, SCREEN_HEIGHT - 300],
+  });
+
   return (
     <View className={`flex-1 ${isDark ? 'bg-dark-background' : 'bg-light-background'}`}>
-      <View className="absolute top-12 left-4 z-10">
-        <GestroIconButton 
-          icon={<ArrowLeft color={isDark ? '#FFF' : '#000'} />} 
-          onPress={() => step === 2 ? setStep(1) : navigation.goBack()}
-          variant="ghost"
-        />
-      </View>
-      
       {step === 1 ? (
         <View className="flex-1 px-6 pt-12 pb-6">
           <View className="absolute top-12 left-4 z-10">
@@ -265,6 +280,24 @@ export function CreateProfileScreen({ navigation }: any) {
         </View>
       ) : (
         <>
+          <View className="absolute top-12 left-4 right-4 z-20 flex-row justify-between items-center">
+            <GestroIconButton 
+              icon={<ArrowLeft color="#FFF" />} 
+              onPress={() => setStep(1)}
+              variant="ghost"
+              style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+            />
+            
+            {permission?.granted && (
+              <TouchableOpacity 
+                onPress={() => setIsFlashlightOn(!isFlashlightOn)}
+                className="w-12 h-12 rounded-full items-center justify-center bg-black/50"
+              >
+                {isFlashlightOn ? <Flashlight color="#00C278" /> : <FlashlightOff color="#FFF" />}
+              </TouchableOpacity>
+            )}
+          </View>
+
           {(!permission || !permission.granted) ? (
             <View className="flex-1 items-center justify-center p-6">
               <Text className={`text-center mb-6 text-lg ${isDark ? 'text-dark-textPrimary' : 'text-light-textPrimary'}`}>
@@ -278,13 +311,32 @@ export function CreateProfileScreen({ navigation }: any) {
                 ref={cameraRef}
                 style={StyleSheet.absoluteFill}
                 facing="front"
+                enableTorch={isFlashlightOn}
               />
+              
+              <Animated.View 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 40,
+                  right: 40,
+                  height: 3,
+                  backgroundColor: '#00C278',
+                  shadowColor: '#00C278',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 0.8,
+                  shadowRadius: 10,
+                  elevation: 5,
+                  transform: [{ translateY }]
+                }} 
+              />
+              
               <View className="absolute top-24 left-0 right-0 items-center">
                 <Text className="text-white text-xl font-bold bg-black/50 px-4 py-2 rounded-full">
                   Position your face clearly
                 </Text>
               </View>
-              <View className="absolute bottom-12 left-0 right-0 items-center px-6">
+              <View className="absolute bottom-12 left-0 right-0 items-center px-6 z-20">
                 {error && (
                   <View className="bg-red-500/90 rounded-xl p-4 mb-4 w-full">
                     <Text className="text-white text-center font-medium">{error}</Text>

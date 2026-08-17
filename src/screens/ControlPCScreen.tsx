@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, TextInput, PanResponde
 import { useThemeStore } from '../store/useThemeStore';
 import { usePCConnectionStore } from '../store/usePCConnectionStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../services/supabase';
 import { GestroButton } from '../components/GestroButton';
@@ -29,7 +30,16 @@ export function ControlPCScreen() {
           () => loadDevices()
         )
         .subscribe();
-      return () => { supabase.removeChannel(channel); };
+
+      // Poll devices every second without resetting the subscription or UI loader
+      const interval = setInterval(() => {
+        fetchDevices(session.user.id, true);
+      }, 1000);
+
+      return () => { 
+        supabase.removeChannel(channel);
+        clearInterval(interval);
+      };
     }
   }, [session?.user.id]);
 
@@ -86,7 +96,7 @@ export function ControlPCScreen() {
   return (
     <ScrollView 
       className={`flex-1 ${isDark ? 'bg-dark-background' : 'bg-light-background'}`}
-      contentContainerStyle={{ padding: 16, paddingTop: 48, paddingBottom: 100 }}
+      contentContainerStyle={{ padding: 16, paddingTop: 48, paddingBottom: 100 + (useSafeAreaInsets().bottom || 0) }}
       scrollEnabled={activeTab !== 'mouse'}
     >
       <View className="flex-row items-center justify-between mb-6">

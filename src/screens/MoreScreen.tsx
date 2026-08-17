@@ -8,6 +8,8 @@ import {
   User, MonitorSmartphone, Wifi, Power, PowerOff, Shield, Info, ChevronRight,
   LogOut, CheckCircle2, Lock, AppWindow, ClipboardPaste, Mic, Camera
 } from 'lucide-react-native';
+import { LogOut as LucideLogOut, Sun, Moon, Info as LucideInfo, Settings, Smartphone, FileText, Share2, Star } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../theme/colors';
 import { useNavigation } from '@react-navigation/native';
 
@@ -77,7 +79,7 @@ export function MoreScreen() {
   return (
     <ScrollView 
       className={`flex-1 ${isDark ? 'bg-dark-background' : 'bg-light-background'}`}
-      contentContainerStyle={{ padding: 16, paddingTop: 48, paddingBottom: 100 }}
+      contentContainerStyle={{ padding: 16, paddingTop: 48, paddingBottom: 100 + (useSafeAreaInsets().bottom || 0) }}
     >
       {/* HEADER */}
       <View className="mb-6">
@@ -105,31 +107,7 @@ export function MoreScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* APPEARANCE */}
-      <Text className={`text-sm font-bold mb-3 uppercase tracking-wider ${secondaryTextColor}`}>Appearance</Text>
-      <View className={`p-2 rounded-2xl mb-8 flex-row border ${surfaceStyle}`}>
-        <TouchableOpacity 
-          activeOpacity={0.7}
-          onPress={() => setThemeMode('system')}
-          className={`flex-1 py-2 items-center justify-center rounded-xl ${themeMode === 'system' ? 'bg-gestro-green/20' : ''}`}
-        >
-          <Text className={`font-bold text-sm ${themeMode === 'system' ? 'text-gestro-green' : textColor}`}>System</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          activeOpacity={0.7}
-          onPress={() => setThemeMode('dark')}
-          className={`flex-1 py-2 items-center justify-center rounded-xl ${themeMode === 'dark' ? 'bg-gestro-green/20' : ''}`}
-        >
-          <Text className={`font-bold text-sm ${themeMode === 'dark' ? 'text-gestro-green' : textColor}`}>Dark</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          activeOpacity={0.7}
-          onPress={() => setThemeMode('light')}
-          className={`flex-1 py-2 items-center justify-center rounded-xl ${themeMode === 'light' ? 'bg-gestro-green/20' : ''}`}
-        >
-          <Text className={`font-bold text-sm ${themeMode === 'light' ? 'text-gestro-green' : textColor}`}>Light</Text>
-        </TouchableOpacity>
-      </View>
+
 
       {/* CONNECTION */}
       <Text className={`text-sm font-bold mb-3 uppercase tracking-wider ${secondaryTextColor}`}>Connection</Text>
@@ -163,30 +141,10 @@ export function MoreScreen() {
           </View>
         )}
       </View>
-
-      <View className={!isConnected ? 'opacity-40' : ''} pointerEvents={!isConnected ? 'none' : 'auto'}>
-        {/* CONNECTION PREFERENCES */}
-        <Text className={`text-sm font-bold mb-3 uppercase tracking-wider ${secondaryTextColor}`}>Connection Preference</Text>
-        <View className={`p-2 rounded-2xl mb-8 flex-row border ${surfaceStyle}`}>
-          <TouchableOpacity 
-            activeOpacity={0.7}
-            onPress={() => setConnectionPreference('USB First')}
-            className={`flex-1 py-2 items-center justify-center rounded-xl ${connectionPreference === 'USB First' ? 'bg-gestro-green/20' : ''}`}
-          >
-            <Text className={`font-bold text-sm ${connectionPreference === 'USB First' ? 'text-gestro-green' : textColor}`}>USB First</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            activeOpacity={0.7}
-            onPress={() => setConnectionPreference('Wi-Fi First')}
-            className={`flex-1 py-2 items-center justify-center rounded-xl ${connectionPreference === 'Wi-Fi First' ? 'bg-gestro-green/20' : ''}`}
-          >
-            <Text className={`font-bold text-sm ${connectionPreference === 'Wi-Fi First' ? 'text-gestro-green' : textColor}`}>Wi-Fi First</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* MODULES */}
-        <Text className={`text-sm font-bold mb-3 uppercase tracking-wider ${secondaryTextColor}`}>Modules</Text>
-        <View className="mb-8">
+      {/* MODULES */}
+      <Text className={`text-sm font-bold mb-3 uppercase tracking-wider ${secondaryTextColor}`}>Modules</Text>
+      <View className="mb-8">
+        <View className={!isConnected ? 'opacity-40' : ''} pointerEvents={!isConnected ? 'none' : 'auto'}>
           <ModuleButton 
             icon={<AppWindow color={isDark ? '#FFF' : '#000'} size={24} />} 
             label="Windows Manager" 
@@ -205,8 +163,16 @@ export function MoreScreen() {
             surfaceStyle={surfaceStyle} 
             textColor={textColor} 
           />
-
         </View>
+        <ModuleButton 
+          icon={<Settings color={isDark ? '#FFF' : '#000'} size={24} />} 
+          label="Settings" 
+          description="Appearance, account & preferences"
+          onPress={() => navigation.navigate('Settings' as never)} 
+          isDark={isDark} 
+          surfaceStyle={surfaceStyle} 
+          textColor={textColor} 
+        />
       </View>
 
       {/* LEGAL */}
@@ -227,36 +193,7 @@ export function MoreScreen() {
         />
       </View>
 
-      {/* ACCOUNT */}
-      <Text className={`text-sm font-bold mb-3 uppercase tracking-wider ${secondaryTextColor}`}>Account</Text>
-      <View className={`rounded-2xl mb-8 overflow-hidden border ${surfaceStyle}`}>
-        <SettingRow 
-          icon={<User color={isDark ? '#FFF' : '#000'} size={20} />} 
-          label="Profile Information" 
-          isDark={isDark} 
-          onPress={() => {}}
-        />
-        <View className={`h-[1px] ${isDark ? 'bg-dark-border' : 'bg-light-border'}`} />
-        <SettingRow 
-          icon={<LogOut color="#EF4444" size={20} />} 
-          label="Log out" 
-          isDark={isDark} 
-          onPress={handleLogout}
-          danger
-        />
-      </View>
 
-      {/* DANGER ZONE */}
-      <Text className={`text-sm font-bold mb-3 uppercase tracking-wider text-red-500`}>Danger Zone</Text>
-      <View className={`rounded-2xl mb-8 overflow-hidden border ${isDark ? 'bg-dark-surface border-red-900/30' : 'bg-red-50 border-red-200'}`}>
-        <SettingRow 
-          icon={<PowerOff color="#EF4444" size={20} />} 
-          label="Delete Account Permanently" 
-          isDark={isDark} 
-          onPress={handleDeleteAccount}
-          danger
-        />
-      </View>
 
     </ScrollView>
   );

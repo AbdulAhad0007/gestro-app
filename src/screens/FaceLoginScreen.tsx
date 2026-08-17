@@ -1,20 +1,44 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useThemeStore } from '../store/useThemeStore';
 import { GestroButton } from '../components/GestroButton';
 import { useAuthStore } from '../store/useAuthStore';
 import { supabase } from '../services/supabase';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Flashlight, FlashlightOff } from 'lucide-react-native';
 import { GestroIconButton } from '../components/GestroIconButton';
+
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export function FaceLoginScreen({ navigation }: any) {
   const isDark = useThemeStore((state) => state.isDarkMode());
   const [permission, requestPermission] = useCameraPermissions();
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const cameraRef = useRef<any>(null);
   const setSession = useAuthStore((state) => state.setSession);
+
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (permission?.granted) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanAnim, {
+            toValue: 1,
+            duration: 2500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanAnim, {
+            toValue: 0,
+            duration: 2500,
+            useNativeDriver: true,
+          })
+        ])
+      ).start();
+    }
+  }, [permission, scanAnim]);
 
   if (!permission) {
     return <View />;
@@ -40,13 +64,12 @@ export function FaceLoginScreen({ navigation }: any) {
     try {
       const photo = await cameraRef.current.takePictureAsync({ base64: true, quality: 0.5 });
       
-      // Simulate Supabase Edge Function Call to Face++
       const response = await supabase.functions.invoke('face-proxy', {
         body: {
           endpoint: 'search',
           payload: {
             image_base64: photo.base64,
-            outer_id: 'gestro_users' // Assumes a faceset exists
+            outer_id: 'gestro_users'
           }
         }
       });
@@ -55,7 +78,6 @@ export function FaceLoginScreen({ navigation }: any) {
         throw new Error(response.error.message || 'Face authentication failed');
       }
       
-      // The edge function now returns status 200 even for errors, so we check data
       if (response.data?.error) {
         throw new Error(`Edge Function Error: ${response.data.error}`);
       }
@@ -69,7 +91,6 @@ export function FaceLoginScreen({ navigation }: any) {
         const faceToken = results[0].face_token;
         console.log("Matched faceToken from Face++:", faceToken);
         
-        // Lookup user in Supabase by face_token using our new edge function
         const userLookupResponse = await supabase.functions.invoke('get-user-by-face', {
           body: { face_token: faceToken }
         });
@@ -83,14 +104,11 @@ export function FaceLoginScreen({ navigation }: any) {
         const realProfile = userLookupResponse.data.profile;
         const realSession = userLookupResponse.data.session;
 
-        // Establish real Supabase session if JWT is returned
         if (realSession && realSession.access_token) {
-          // Tell our custom fetch wrapper to inject this JWT into all Supabase queries
           const { setCustomJwt } = require('../services/supabase');
           setCustomJwt(realSession.access_token);
         }
 
-        // Setup application state with real profile data
         useAuthStore.getState().setTemporarySession(false);
         useAuthStore.getState().setProfile(realProfile);
         setSession(realSession);
@@ -106,14 +124,27 @@ export function FaceLoginScreen({ navigation }: any) {
     }
   };
 
+  const translateY = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [100, SCREEN_HEIGHT - 300],
+  });
+
   return (
     <View className={`flex-1 ${isDark ? 'bg-dark-background' : 'bg-light-background'}`}>
-      <View className="absolute top-12 left-4 z-10">
+      <View className="absolute top-12 left-4 right-4 z-20 flex-row justify-between items-center">
         <GestroIconButton 
-          icon={<ArrowLeft color={isDark ? '#FFF' : '#000'} />} 
+          icon={<ArrowLeft color="#FFF" />} 
           onPress={() => navigation.goBack()}
           variant="ghost"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
         />
+        
+        <TouchableOpacity 
+          onPress={() => setIsFlashlightOn(!isFlashlightOn)}
+          className="w-12 h-12 rounded-full items-center justify-center bg-black/50"
+        >
+          {isFlashlightOn ? <Flashlight color="#00C278" /> : <FlashlightOff color="#FFF" />}
+        </TouchableOpacity>
       </View>
       
       <CameraView 
@@ -122,7 +153,32 @@ export function FaceLoginScreen({ navigation }: any) {
         facing="front"
       />
       
-      <View className="absolute bottom-12 left-0 right-0 items-center px-6">
+      {/* Front Screen Flashlight Simulation */}
+      {isFlashlightOn && (
+        <View 
+          style={{ ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255, 255, 255, 0.85)', zIndex: 5 }} 
+          pointerEvents="none" 
+        />
+      )}
+
+      <Animated.View 
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 40,
+          right: 40,
+          height: 3,
+          backgroundColor: '#00C278',
+          shadowColor: '#00C278',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: 0.8,
+          shadowRadius: 10,
+          elevation: 5,
+          transform: [{ translateY }]
+        }} 
+      />
+      
+      <View className="absolute bottom-12 left-0 right-0 items-center px-6 z-20">
         {error && (
           <View className="bg-red-500/90 rounded-xl p-4 mb-4 w-full">
             <Text className="text-white text-center font-medium">{error}</Text>

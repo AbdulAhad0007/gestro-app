@@ -4,5 +4,7 @@
     "supabase/functions"
   ],
   "deno.lint": true,
-  "deno.unstable": []
+  "deno.unstable": [],
+  "files.autoSave": "afterDelay",
+  "editor.wordWrap": "on"
 }
