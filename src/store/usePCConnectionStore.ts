@@ -13,6 +13,7 @@ interface PCConnectionState {
   transportType: TransportType;
   latency: number | null;
   connectionPreference: 'USB First' | 'Wi-Fi First';
+  pairingTimeLeft: number | null;
   
   connect: (userId: string, device?: any) => Promise<void>;
   disconnect: () => void;
@@ -44,6 +45,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
   transportType: null,
   latency: null,
   connectionPreference: 'USB First',
+  pairingTimeLeft: null,
   _connectionAttempt: 0,
   
   apps: [],
@@ -61,6 +63,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
 
   _devicesSubscription: null as any,
   _pingInterval: null as any,
+  _pairingInterval: null as any,
 
   setConnectionPreference: (pref) => {
     set({ connectionPreference: pref } as any);
@@ -148,7 +151,10 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
       existingWs.close();
     }
 
-    set({ isConnecting: true, connectionError: null, ws: null, _connectionAttempt: currentAttempt, latency: null } as any);
+    const { _pairingInterval: existingPairingInterval } = get() as any;
+    if (existingPairingInterval) clearInterval(existingPairingInterval);
+
+    set({ isConnecting: true, connectionError: null, ws: null, _connectionAttempt: currentAttempt, latency: null, pairingTimeLeft: null } as any);
 
     const setupWsHandlers = (ws: WebSocket, transport: TransportType) => {
       let lastPingTime = 0;
@@ -172,6 +178,30 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
         if ((get() as any)._connectionAttempt !== currentAttempt) return;
         try {
           const data = JSON.parse(event.data);
+          
+          if (data.status === 'pending') {
+            set({ pairingTimeLeft: 10 } as any);
+            const pairingInterval = setInterval(() => {
+              const currentLeft = (get() as any).pairingTimeLeft;
+              if (currentLeft && currentLeft > 1) {
+                set({ pairingTimeLeft: currentLeft - 1 } as any);
+              } else {
+                clearInterval((get() as any)._pairingInterval);
+                set({ isConnecting: false, connectionError: 'Pairing request timed out.', ws: null, selectedDevice: null, pairingTimeLeft: null } as any);
+                ws.close();
+              }
+            }, 1000);
+            set({ _pairingInterval: pairingInterval } as any);
+            return;
+          }
+
+          // Clear pairing interval if any other status arrives
+          const { _pairingInterval } = get() as any;
+          if (_pairingInterval) {
+            clearInterval(_pairingInterval);
+            set({ _pairingInterval: null, pairingTimeLeft: null } as any);
+          }
+
           if (data.status === 'connected') {
             set({ isConnected: true, isConnecting: false, connectionError: null, ws, transportType: transport } as any);
             
@@ -210,19 +240,15 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
 
       ws.onclose = () => {
         if ((get() as any)._connectionAttempt !== currentAttempt) return;
-        set({ isConnected: false, isConnecting: false, ws: null, transportType: null, latency: null } as any);
-        const { _pingInterval } = get() as any;
+        set({ isConnected: false, isConnecting: false, ws: null, transportType: null, latency: null, pairingTimeLeft: null } as any);
+        const { _pingInterval, _pairingInterval } = get() as any;
         if (_pingInterval) clearInterval(_pingInterval);
+        if (_pairingInterval) clearInterval(_pairingInterval);
         
         // Notify file transfer store to pause active transfers
         useFileTransferStore.getState().handleDisconnect();
         
-        // Auto-reconnect fallback
-        setTimeout(() => {
-          if (get().selectedDevice) {
-            get().connect(userId, get().selectedDevice);
-          }
-        }, 3000);
+
       };
     };
 
@@ -288,28 +314,96 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
         }
       }
 
-      // Throw error if local connection methods fail
-      throw new Error("Unable to connect to PC locally via USB or LAN.");
+      // Fallback to Supabase Relay
+      console.log('Local connections failed, trying Supabase Relay...');
+      
+      const relayWs = new Promise<WebSocket>((resolve, reject) => {
+        let isResolved = false;
+        const channelName = `relay_${targetDevice.id}`;
+        const channel = supabase.channel(channelName);
+        
+        let timeout = setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            supabase.removeChannel(channel);
+            reject(new Error("Relay timeout"));
+          }
+        }, 5000);
+
+        const mockWs: any = {
+          readyState: 0,
+          onopen: null,
+          onmessage: null,
+          onclose: null,
+          onerror: null,
+          close: () => {
+            mockWs.readyState = 3;
+            supabase.removeChannel(channel);
+            if (mockWs.onclose) mockWs.onclose();
+          },
+          send: (data: string) => {
+            if (mockWs.readyState === 1) {
+              // Send message to PC
+              channel.send({
+                type: 'broadcast',
+                event: 'from_app',
+                payload: data
+              });
+            }
+          },
+          addEventListener: (event: string, callback: any) => {
+            if (event === 'open') {
+               const old = mockWs.onopen;
+               mockWs.onopen = () => { if(old) old(); callback(); };
+            } else if (event === 'error') {
+               const old = mockWs.onerror;
+               mockWs.onerror = (e: any) => { if(old) old(e); callback(e); };
+            }
+          }
+        };
+
+        channel
+          .on('broadcast', { event: 'from_pc' }, (payload) => {
+            if (mockWs.onmessage && payload.payload) {
+              mockWs.onmessage({ data: payload.payload });
+            }
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED' && !isResolved) {
+              clearTimeout(timeout);
+              isResolved = true;
+              mockWs.readyState = 1;
+              resolve(mockWs as WebSocket);
+              // Do not call onopen here, setupWsHandlers will call it if it was bound or we trigger it via event listener
+            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+              mockWs.readyState = 3;
+              if (mockWs.onclose) mockWs.onclose();
+            }
+          });
+      });
+
+      const ws = await relayWs;
+      console.log('Relay connected!');
+      setupWsHandlers(ws, 'RELAY');
+      return;
 
     } catch (err: any) {
       if ((get() as any)._connectionAttempt === currentAttempt) {
-        set({ isConnecting: false, connectionError: 'Failed to connect to PC via LAN or USB.' } as any);
-        
-        // Auto-reconnect fallback on total failure
-        setTimeout(() => {
-          if (get().selectedDevice) {
-            get().connect(userId, get().selectedDevice);
-          }
-        }, 5000);
+        let msg = 'Unable to connect to PC locally or via relay. Check that Gestro is running on your PC.';
+        if (err?.message === 'Relay timeout' || err?.message === 'Timeout') {
+          msg = 'Connection timed out. Try again.';
+        }
+        set({ isConnecting: false, connectionError: msg } as any);
       }
     }
   },
 
   disconnect: () => {
-    const { ws, _pingInterval } = get() as any;
+    const { ws, _pingInterval, _pairingInterval } = get() as any;
     if (ws) ws.close();
     if (_pingInterval) clearInterval(_pingInterval);
-    set({ isConnected: false, isConnecting: false, ws: null, connectionError: null, transportType: null, latency: null,
+    if (_pairingInterval) clearInterval(_pairingInterval);
+    set({ isConnected: false, isConnecting: false, ws: null, connectionError: null, transportType: null, latency: null, pairingTimeLeft: null,
       apps: [],
       windows: [],
       clipboardText: null,

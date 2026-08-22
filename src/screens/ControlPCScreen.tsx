@@ -12,7 +12,7 @@ import { colors } from '../theme/colors';
 
 export function ControlPCScreen() {
   const isDark = useThemeStore((state) => state.isDarkMode());
-  const { isConnected, isConnecting, connectionError, connect, disconnect, sendAction, apps, windows, clipboardText, screenshotData, availableDevices, fetchDevices, systemStats, selectedDevice, transportType, latency } = usePCConnectionStore();
+  const { isConnected, isConnecting, connectionError, connect, disconnect, sendAction, apps, windows, clipboardText, screenshotData, availableDevices, fetchDevices, systemStats, selectedDevice, transportType, latency, pairingTimeLeft } = usePCConnectionStore();
   const { session } = useAuthStore();
   
   const [activeTab, setActiveTab] = useState<'quick' | 'mouse' | 'keyboard' | 'media' | 'apps' | 'windows' | 'system'>('quick');
@@ -166,7 +166,7 @@ export function ControlPCScreen() {
                   </Text>
                 </View>
                 <GestroButton 
-                  label={isConnecting && selectedDevice?.id === device.id ? "Connecting" : "Connect"} 
+                  label={isConnecting && selectedDevice?.id === device.id ? (pairingTimeLeft !== null ? `Waiting for PC (${pairingTimeLeft}s)` : "Connecting...") : "Connect"} 
                   onPress={() => handleConnect(device)} 
                   disabled={isConnecting || device.status !== 'online'}
                   variant={device.status === 'online' ? 'primary' : 'outline'}
