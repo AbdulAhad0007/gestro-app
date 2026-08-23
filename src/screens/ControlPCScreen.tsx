@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../services/supabase';
 import { GestroButton } from '../components/GestroButton';
-import { Monitor, Wifi, MousePointer2, Volume2, Volume1, VolumeX, Play, Pause, SkipForward, SkipBack, Lock, Power, PowerOff, Sun, Moon, Keyboard as KeyboardIcon, Command, Search, Image as ImageIcon, Cpu, Activity, Clock } from 'lucide-react-native';
+import { Monitor, Wifi, MousePointer2, Volume2, Volume1, VolumeX, Play, Pause, SkipForward, SkipBack, Lock, Power, PowerOff, Sun, Moon, Keyboard as KeyboardIcon, Command, Search, Image as ImageIcon, Cpu, Activity, Clock, X } from 'lucide-react-native';
 import { colors } from '../theme/colors';
 
 export function ControlPCScreen() {
@@ -165,12 +165,22 @@ export function ControlPCScreen() {
                     {device.status === 'online' ? '● Online' : '● Offline'}
                   </Text>
                 </View>
-                <GestroButton 
-                  label={isConnecting && selectedDevice?.id === device.id ? (pairingTimeLeft !== null ? `Waiting for PC (${pairingTimeLeft}s)` : "Connecting...") : "Connect"} 
-                  onPress={() => handleConnect(device)} 
-                  disabled={isConnecting || device.status !== 'online'}
-                  variant={device.status === 'online' ? 'primary' : 'outline'}
-                />
+                <View className="flex-row items-center">
+                  <GestroButton 
+                    label={isConnecting && selectedDevice?.id === device.id ? (pairingTimeLeft !== null ? `Waiting for PC (${pairingTimeLeft}s)` : "Connecting...") : "Connect"} 
+                    onPress={() => handleConnect(device)} 
+                    disabled={isConnecting || device.status !== 'online'}
+                    variant={device.status === 'online' ? 'primary' : 'outline'}
+                  />
+                  {isConnecting && selectedDevice?.id === device.id && (
+                    <TouchableOpacity 
+                      onPress={() => disconnect()}
+                      className="ml-2 p-2 bg-black/10 dark:bg-white/10 rounded-full"
+                    >
+                      <X color={isDark ? '#FFF' : '#000'} size={20} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             ))
           ) : (

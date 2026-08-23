@@ -74,3 +74,4 @@ export function BottomTabNavigator() {
     </Tab.Navigator>
   );
 }
+
