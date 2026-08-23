@@ -90,7 +90,6 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
         .from('user_devices')
         .select('*')
         .eq('user_id', userId)
-        .eq('platform', 'windows')
         .order('last_seen', { ascending: false });
       
       if (error) {
@@ -121,7 +120,6 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
               .from('user_devices')
               .select('*')
               .eq('user_id', userId)
-              .eq('platform', 'windows')
               .order('last_seen', { ascending: false });
             if (newData) set({ availableDevices: newData } as any);
           }

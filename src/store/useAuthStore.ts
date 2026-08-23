@@ -38,31 +38,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   setTemporarySession: (isTemp) => set({ isTemporarySession: isTemp }),
   restoreSession: async () => {
     try {
-      const storedSessionStr = await AsyncStorage.getItem('gestro_session');
-      if (storedSessionStr) {
-        const storedSession = JSON.parse(storedSessionStr);
-        
-        // Use Supabase's setSession to refresh the JWT if expired
-        // This will use the refresh_token to get a fresh access_token
-        const { data, error } = await supabase.auth.setSession({
-          access_token: storedSession.access_token,
-          refresh_token: storedSession.refresh_token,
-        });
-        
-        if (error || !data.session) {
-          console.warn('Session refresh failed, clearing stale session:', error?.message);
-          await AsyncStorage.removeItem('gestro_session');
-          set({ session: null, user: null, profile: null });
-          return;
-        }
-        
+      const { data, error } = await supabase.auth.getSession();
+      
+      if (data.session) {
         const freshSession = data.session;
         set({ session: freshSession, user: freshSession.user });
         const { setCustomJwt } = require('../services/supabase');
         setCustomJwt(freshSession.access_token);
-        
-        // Persist the refreshed session
-        await AsyncStorage.setItem('gestro_session', JSON.stringify(freshSession));
         
         // Fetch the corresponding profile
         const { data: profile } = await supabase

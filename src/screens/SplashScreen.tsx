@@ -28,7 +28,7 @@ export function SplashScreen({ navigation }: any) {
   return (
     <View className={`flex-1 items-center justify-center ${isDark ? 'bg-dark-background' : 'bg-light-background'}`}>
       <Image 
-        source={require('../../assets/icon.png')} 
+        source={require('../../assets/splash-icon.png')} 
         style={{ width: 120, height: 120, marginBottom: 20 }}
         resizeMode="contain"
       />
