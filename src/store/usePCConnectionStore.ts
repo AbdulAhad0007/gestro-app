@@ -157,6 +157,8 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
     const setupWsHandlers = (ws: WebSocket, transport: TransportType) => {
       let lastPingTime = 0;
 
+      let handshakeTimeout: any;
+
       const sendHandshake = () => {
         if ((get() as any)._connectionAttempt !== currentAttempt) return;
         ws.send(JSON.stringify({
@@ -164,6 +166,13 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
           device_name: Device.deviceName || 'Unknown Android Device',
           user_id: userId
         }));
+
+        handshakeTimeout = setTimeout(() => {
+          if (get().isConnecting) {
+            set({ isConnecting: false, connectionError: 'PC did not respond. Is Gestro running?' } as any);
+            ws.close();
+          }
+        }, 6000);
       };
 
       if (ws.readyState === WebSocket.OPEN) {
@@ -178,6 +187,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
           const data = JSON.parse(event.data);
           
           if (data.status === 'pending') {
+            if (handshakeTimeout) clearTimeout(handshakeTimeout);
             set({ pairingTimeLeft: 10 } as any);
             const pairingInterval = setInterval(() => {
               const currentLeft = (get() as any).pairingTimeLeft;
@@ -192,6 +202,9 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
             set({ _pairingInterval: pairingInterval } as any);
             return;
           }
+
+          // Clear handshake interval on any other valid response
+          if (handshakeTimeout) clearTimeout(handshakeTimeout);
 
           // Clear pairing interval if any other status arrives
           const { _pairingInterval } = get() as any;
@@ -237,6 +250,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
       };
 
       ws.onclose = () => {
+        if (handshakeTimeout) clearTimeout(handshakeTimeout);
         if ((get() as any)._connectionAttempt !== currentAttempt) return;
         set({ isConnected: false, isConnecting: false, ws: null, transportType: null, latency: null, pairingTimeLeft: null } as any);
         const { _pingInterval, _pairingInterval } = get() as any;
@@ -376,6 +390,11 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
             } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
               mockWs.readyState = 3;
               if (mockWs.onclose) mockWs.onclose();
+              if (!isResolved) {
+                isResolved = true;
+                clearTimeout(timeout);
+                reject(new Error(status === 'CHANNEL_ERROR' ? "Relay channel error" : "Relay closed"));
+              }
             }
           });
       });
@@ -390,6 +409,8 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
         let msg = 'Unable to connect to PC locally or via relay. Check that Gestro is running on your PC.';
         if (err?.message === 'Relay timeout' || err?.message === 'Timeout') {
           msg = 'Connection timed out. Try again.';
+        } else if (err?.message === 'Relay channel error') {
+          msg = 'Failed to connect to relay server (No Internet).';
         }
         set({ isConnecting: false, connectionError: msg } as any);
       }
