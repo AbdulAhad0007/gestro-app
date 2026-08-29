@@ -23,13 +23,8 @@ export function GlobalConnectButton() {
         )
         .subscribe();
 
-      const interval = setInterval(() => {
-        fetchDevices(session.user.id, true);
-      }, 3000); // Polling every 3 seconds for battery/efficiency
-
       return () => { 
         supabase.removeChannel(channel);
-        clearInterval(interval);
       };
     }
   }, [session?.user?.id]);

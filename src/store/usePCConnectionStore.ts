@@ -35,6 +35,7 @@ interface ExtendedPCConnectionState extends PCConnectionState {
   availableDevices: any[];
   selectedDevice: any | null;
   fetchDevices: (userId: string, skipSubscription?: boolean) => Promise<void>;
+  removeDevice: (deviceId: string) => Promise<void>;
 }
 
 export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get) => ({
@@ -75,13 +76,6 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
       return;
     }
     try {
-      // Refresh session if expired
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError || !sessionData.session) {
-        console.error('[fetchDevices] Session error or missing session:', sessionError);
-        return;
-      }
-
       if (!skipSubscription) {
         console.log(`[fetchDevices] Querying user_devices for userId: ${userId}`);
       }
@@ -129,6 +123,25 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
       set({ _devicesSubscription: channel } as any);
     } catch (e) {
       console.error('[fetchDevices] Exception:', e);
+    }
+  },
+
+  removeDevice: async (deviceId: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_devices')
+        .delete()
+        .eq('id', deviceId);
+
+      if (error) {
+        console.error('[removeDevice] Error removing device:', error);
+        return;
+      }
+      
+      const currentDevices = get().availableDevices;
+      set({ availableDevices: currentDevices.filter(d => d.id !== deviceId) } as any);
+    } catch (err) {
+      console.error('[removeDevice] Exception:', err);
     }
   },
 
@@ -450,3 +463,4 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
     }
   }
 }));
+

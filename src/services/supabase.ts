@@ -8,6 +8,13 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 let customJwt: string | null = null;
 export const setCustomJwt = (token: string | null) => {
   customJwt = token;
+  if (supabase) {
+    if (token) {
+      supabase.realtime.setAuth(token);
+    } else {
+      supabase.realtime.setAuth(null);
+    }
+  }
 };
 
 const customFetch = async (url: RequestInfo | URL, options?: RequestInit) => {

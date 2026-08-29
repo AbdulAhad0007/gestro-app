@@ -7,12 +7,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supabase } from '../services/supabase';
 import { GestroButton } from '../components/GestroButton';
-import { Monitor, Wifi, MousePointer2, Volume2, Volume1, VolumeX, Play, Pause, SkipForward, SkipBack, Lock, Power, PowerOff, Sun, Moon, Keyboard as KeyboardIcon, Command, Search, Image as ImageIcon, Cpu, Activity, Clock, X } from 'lucide-react-native';
+import { Monitor, Wifi, MousePointer2, Volume2, Volume1, VolumeX, Play, Pause, SkipForward, SkipBack, Lock, Power, PowerOff, Sun, Moon, Keyboard as KeyboardIcon, Command, Search, Image as ImageIcon, Cpu, Activity, Clock, X, Trash2 } from 'lucide-react-native';
 import { colors } from '../theme/colors';
 
 export function ControlPCScreen() {
   const isDark = useThemeStore((state) => state.isDarkMode());
-  const { isConnected, isConnecting, connectionError, connect, disconnect, sendAction, apps, windows, clipboardText, screenshotData, availableDevices, fetchDevices, systemStats, selectedDevice, transportType, latency, pairingTimeLeft } = usePCConnectionStore();
+  const { isConnected, isConnecting, connectionError, connect, disconnect, sendAction, apps, windows, clipboardText, screenshotData, availableDevices, fetchDevices, systemStats, selectedDevice, transportType, latency, pairingTimeLeft, removeDevice } = usePCConnectionStore();
   const { session } = useAuthStore();
   
   const [activeTab, setActiveTab] = useState<'quick' | 'mouse' | 'keyboard' | 'media' | 'apps' | 'windows' | 'system'>('quick');
@@ -31,14 +31,8 @@ export function ControlPCScreen() {
         )
         .subscribe();
 
-      // Poll devices every second without resetting the subscription or UI loader
-      const interval = setInterval(() => {
-        fetchDevices(session.user.id, true);
-      }, 1000);
-
       return () => { 
         supabase.removeChannel(channel);
-        clearInterval(interval);
       };
     }
   }, [session?.user.id]);
@@ -91,6 +85,17 @@ export function ControlPCScreen() {
     setActiveTab(tab);
     if (tab === 'apps') sendAction('GET_APPS');
     if (tab === 'windows') sendAction('GET_WINDOWS');
+  };
+
+  const confirmRemoveDevice = (device: any) => {
+    Alert.alert(
+      'Remove Device',
+      `Are you sure you want to remove ${device.device_name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => removeDevice(device.id) }
+      ]
+    );
   };
 
   return (
@@ -178,6 +183,14 @@ export function ControlPCScreen() {
                       className="ml-2 p-2 bg-black/10 dark:bg-white/10 rounded-full"
                     >
                       <X color={isDark ? '#FFF' : '#000'} size={20} />
+                    </TouchableOpacity>
+                  )}
+                  {device.status !== 'online' && (
+                    <TouchableOpacity 
+                      onPress={() => confirmRemoveDevice(device)}
+                      className="ml-2 p-2 bg-red-500/10 rounded-full"
+                    >
+                      <Trash2 color="#EF4444" size={20} />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -284,3 +297,4 @@ function KeyBtn({ label, onPress, isDark }: any) {
     </TouchableOpacity>
   );
 }
+
