@@ -197,7 +197,7 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
       ws.onmessage = (event) => {
         if ((get() as any)._connectionAttempt !== currentAttempt) return;
         try {
-          const data = JSON.parse(event.data);
+          const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
           
           if (data.status === 'pending') {
             if (handshakeTimeout) clearTimeout(handshakeTimeout);
@@ -369,10 +369,15 @@ export const usePCConnectionStore = create<ExtendedPCConnectionState>((set, get)
           send: (data: string) => {
             if (mockWs.readyState === 1) {
               // Send message to PC
+              let payloadData = data;
+              try {
+                payloadData = JSON.parse(data);
+              } catch (e) {}
+              
               channel.send({
                 type: 'broadcast',
                 event: 'from_app',
-                payload: data
+                payload: payloadData
               });
             }
           },

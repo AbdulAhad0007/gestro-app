@@ -96,10 +96,16 @@ relay_method = """    async def _start_supabase_relay(self):
                     def __init__(self, ch):
                         self.ch = ch
                     async def send(self, data):
+                        payload_data = data
+                        if isinstance(data, str):
+                            try:
+                                payload_data = json.loads(data)
+                            except:
+                                pass
                         self.ch.send({
                             "type": "broadcast",
                             "event": "from_pc",
-                            "payload": data
+                            "payload": payload_data
                         })
                 
                 mock_ws = MockRelayWebSocket(channel)

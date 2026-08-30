@@ -185,14 +185,12 @@ export function ControlPCScreen() {
                       <X color={isDark ? '#FFF' : '#000'} size={20} />
                     </TouchableOpacity>
                   )}
-                  {device.status !== 'online' && (
-                    <TouchableOpacity 
-                      onPress={() => confirmRemoveDevice(device)}
-                      className="ml-2 p-2 bg-red-500/10 rounded-full"
-                    >
-                      <Trash2 color="#EF4444" size={20} />
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity 
+                    onPress={() => confirmRemoveDevice(device)}
+                    className="ml-2 p-2 bg-red-500/10 rounded-full"
+                  >
+                    <Trash2 color="#EF4444" size={20} />
+                  </TouchableOpacity>
                 </View>
               </View>
             ))
