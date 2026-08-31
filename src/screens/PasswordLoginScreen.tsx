@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Dimensions } from 'react-native';
+import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '../store/useThemeStore';
 import { GestroInput } from '../components/GestroInput';
 import { GradientButton } from '../components/GradientButton';
@@ -8,8 +10,11 @@ import { ArrowLeft, Mail, Lock } from 'lucide-react-native';
 import { supabase } from '../services/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 export function PasswordLoginScreen({ navigation }: any) {
   const isDark = useThemeStore((state) => state.isDarkMode());
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +22,13 @@ export function PasswordLoginScreen({ navigation }: any) {
   
   const textColor = isDark ? 'text-dark-textPrimary' : 'text-light-textPrimary';
   const textMuted = isDark ? 'text-dark-textSecondary' : 'text-light-textSecondary';
+
+  const keyboard = useAnimatedKeyboard();
+  const animatedPaddingStyle = useAnimatedStyle(() => {
+    return {
+      paddingBottom: keyboard.height.value + Math.max(insets.bottom, 24),
+    };
+  });
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -38,7 +50,6 @@ export function PasswordLoginScreen({ navigation }: any) {
       if (data.session) {
         useAuthStore.getState().setSession(data.session);
         
-        // Also setup application state with profile data if available
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('*')
@@ -58,66 +69,71 @@ export function PasswordLoginScreen({ navigation }: any) {
   };
 
   return (
-    <View className={`flex-1 px-6 pt-12 pb-6 ${isDark ? 'bg-dark-background' : 'bg-light-background'}`}>
-      <View className="absolute top-12 left-4 z-10">
-        <GestroIconButton 
-          icon={<ArrowLeft color={isDark ? '#FFF' : '#000'} />} 
-          onPress={() => navigation.goBack()}
-          variant="ghost"
-        />
-      </View>
-
-      <View className="items-center mt-12 mb-8">
-        <Image 
-          source={require('../../assets/icon.png')} 
-          className="w-20 h-20 mb-4" 
-          resizeMode="contain"
-        />
-        <Text className={`text-2xl font-bold mb-2 text-center ${textColor}`}>
-          Welcome Back to <Text className="text-gestro-green">Gestro</Text>
-        </Text>
-        <Text className={`text-center text-sm px-4 ${textMuted}`}>
-          Log in with your email and password.
-        </Text>
-      </View>
-      
-      <View className="w-full flex-1">
-        <GestroInput 
-          label=""
-          placeholder="Email Address"
-          icon={<Mail color={isDark ? '#A0A0A0' : '#666666'} size={20} />}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}
-          containerClassName="mb-4"
-        />
-        <GestroInput 
-          label=""
-          placeholder="Password"
-          icon={<Lock color={isDark ? '#A0A0A0' : '#666666'} size={20} />}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-          containerClassName="mb-6"
-        />
-        
-        {error && <Text className="text-red-500 mb-4 text-center">{error}</Text>}
-        
-        <GradientButton 
-          label="Login" 
-          onPress={handleLogin} 
-          isLoading={isLoading}
-          className="w-full mt-auto"
-        />
-
-        <View className="flex-row justify-center mt-6">
-          <Text className={textMuted}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('CreateProfile')}>
-            <Text className="text-gestro-green font-bold">Create Profile</Text>
-          </TouchableOpacity>
+    <View style={{ height: SCREEN_HEIGHT }} className={isDark ? 'bg-dark-background' : 'bg-light-background'}>
+      <Animated.View 
+        style={animatedPaddingStyle} 
+        className="flex-1 px-6 max-w-md mx-auto w-full self-center"
+      >
+        <View style={{ paddingTop: Math.max(insets.top, 24) }} className="w-full flex-row">
+          <GestroIconButton 
+            icon={<ArrowLeft color={isDark ? '#FFF' : '#000'} />} 
+            onPress={() => navigation.goBack()}
+            variant="ghost"
+          />
         </View>
-      </View>
+
+        <View className="items-center mt-6 mb-8">
+          <Image 
+            source={require('../../assets/icon.png')} 
+            className="w-20 h-20 mb-4" 
+            resizeMode="contain"
+          />
+          <Text className={`text-2xl font-bold mb-2 text-center ${textColor}`}>
+            Welcome Back to <Text className="text-gestro-green">Gestro</Text>
+          </Text>
+          <Text className={`text-center text-sm px-4 ${textMuted}`}>
+            Log in with your email and password.
+          </Text>
+        </View>
+        
+        <View className="w-full flex-1">
+          <GestroInput 
+            label=""
+            placeholder="Email Address"
+            icon={<Mail color={isDark ? '#A0A0A0' : '#666666'} size={20} />}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            containerClassName="mb-4"
+          />
+          <GestroInput 
+            label=""
+            placeholder="Password"
+            icon={<Lock color={isDark ? '#A0A0A0' : '#666666'} size={20} />}
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            containerClassName="mb-6"
+          />
+          
+          {error && <Text className="text-red-500 mb-4 text-center">{error}</Text>}
+          
+          <GradientButton 
+            label="Login" 
+            onPress={handleLogin} 
+            isLoading={isLoading}
+            className="w-full mt-auto"
+          />
+
+          <View className="flex-row justify-center mt-6">
+            <Text className={textMuted}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('CreateProfile')}>
+              <Text className="text-gestro-green font-bold">Create Profile</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Animated.View>
     </View>
   );
 }

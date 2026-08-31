@@ -7,7 +7,13 @@ const Stack = createNativeStackNavigator();
 
 export function ShareStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        gestureEnabled: true,
+        animation: 'slide_from_right'
+      }}
+    >
       <Stack.Screen name="GestroShare" component={GestroShareScreen} />
       <Stack.Screen name="TransferProgress" component={TransferProgressScreen} />
     </Stack.Navigator>

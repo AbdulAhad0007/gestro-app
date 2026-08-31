@@ -12,7 +12,13 @@ const Stack = createNativeStackNavigator();
 
 export function MoreStackNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator 
+      screenOptions={{ 
+        headerShown: false,
+        gestureEnabled: true,
+        animation: 'slide_from_right'
+      }}
+    >
       <Stack.Screen name="MoreMenu" component={MoreScreen} />
       <Stack.Screen name="WindowsList" component={WindowsListScreen} />
       <Stack.Screen name="ClipboardSync" component={ClipboardScreen} />

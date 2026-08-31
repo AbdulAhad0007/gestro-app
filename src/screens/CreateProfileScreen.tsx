@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '../store/useThemeStore';
 import { GestroButton } from '../components/GestroButton';
 import { GradientButton } from '../components/GradientButton';
@@ -15,6 +16,7 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export function CreateProfileScreen({ navigation }: any) {
   const isDark = useThemeStore((state) => state.isDarkMode());
+  const insets = useSafeAreaInsets();
   const greenColor = '#00C278';
   const textColor = isDark ? 'text-dark-textPrimary' : 'text-light-textPrimary';
   const textMuted = isDark ? 'text-dark-textSecondary' : 'text-light-textSecondary';
@@ -179,8 +181,11 @@ export function CreateProfileScreen({ navigation }: any) {
   return (
     <View className={`flex-1 ${isDark ? 'bg-dark-background' : 'bg-light-background'}`}>
       {step === 1 ? (
-        <View className="flex-1 px-6 pt-12 pb-6">
-          <View className="absolute top-12 left-4 z-10">
+        <View 
+          className="flex-1 px-6 pb-6 max-w-md mx-auto w-full self-center"
+          style={{ paddingTop: Math.max(insets.top, 24) }}
+        >
+          <View className="w-full flex-row">
             <GestroIconButton 
               icon={<ArrowLeft color={isDark ? '#FFF' : '#000'} />} 
               onPress={() => navigation.goBack()}
@@ -188,7 +193,7 @@ export function CreateProfileScreen({ navigation }: any) {
             />
           </View>
 
-          <View className="items-center mt-12 mb-8">
+          <View className="items-center mt-6 mb-8">
             <Image 
               source={require('../../assets/icon.png')} 
               className="w-20 h-20 mb-4" 

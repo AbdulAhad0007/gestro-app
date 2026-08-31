@@ -34,7 +34,7 @@ serve(async (req) => {
     if (!profiles || profiles.length === 0) {
       return new Response(JSON.stringify({ error: 'User not found for this face' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 404,
+        status: 200,
       })
     }
     
@@ -85,7 +85,7 @@ serve(async (req) => {
   } catch (error) {
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 200,
     })
   }
 })

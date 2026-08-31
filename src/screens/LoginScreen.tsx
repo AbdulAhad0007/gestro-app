@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, SafeAreaView } from 'react-native';
+import { View, Text, Image } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '../store/useThemeStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { GradientButton } from '../components/GradientButton';
@@ -18,7 +19,7 @@ export function LoginScreen({ navigation }: any) {
 
   return (
     <SafeAreaView className={`flex-1 ${bgColor}`}>
-      <View className="flex-1 px-6 pt-12 pb-6 justify-between">
+      <View className="flex-1 px-6 pt-12 pb-6 justify-between max-w-md mx-auto w-full self-center">
         
         {/* Top Section */}
         <View className="items-center mt-10">

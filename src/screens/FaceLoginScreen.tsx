@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useThemeStore } from '../store/useThemeStore';
 import { GestroButton } from '../components/GestroButton';
 import { useAuthStore } from '../store/useAuthStore';
@@ -12,6 +13,7 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export function FaceLoginScreen({ navigation }: any) {
   const isDark = useThemeStore((state) => state.isDarkMode());
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -131,7 +133,10 @@ export function FaceLoginScreen({ navigation }: any) {
 
   return (
     <View className={`flex-1 ${isDark ? 'bg-dark-background' : 'bg-light-background'}`}>
-      <View className="absolute top-12 left-4 right-4 z-20 flex-row justify-between items-center">
+      <View 
+        className="absolute left-4 right-4 z-20 flex-row justify-between items-center"
+        style={{ top: Math.max(insets.top, 24) }}
+      >
         <GestroIconButton 
           icon={<ArrowLeft color="#FFF" />} 
           onPress={() => navigation.goBack()}
@@ -178,7 +183,10 @@ export function FaceLoginScreen({ navigation }: any) {
         }} 
       />
       
-      <View className="absolute bottom-12 left-0 right-0 items-center px-6 z-20">
+      <View 
+        className="absolute left-0 right-0 items-center px-6 z-20 max-w-md mx-auto w-full self-center"
+        style={{ bottom: Math.max(insets.bottom, 24) }}
+      >
         {error && (
           <View className="bg-red-500/90 rounded-xl p-4 mb-4 w-full">
             <Text className="text-white text-center font-medium">{error}</Text>
